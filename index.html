@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      height: 100vh;
+      background: #f7f7f8;
+      color: #1a1a1a;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: #202123;
+      color: #ececec;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 8px;
+      gap: 4px;
+      overflow-y: auto;
+    }
+
+    #sidebar h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: #8e8ea0;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 4px 8px 8px;
+    }
+
+    #new-chat-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid #444;
+      color: #ececec;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: background 0.15s;
+    }
+    #new-chat-btn:hover { background: #2a2b2e; }
+
+    #chat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .chat-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background 0.15s;
+      color: #d1d5db;
+    }
+    .chat-item:hover { background: #2a2b2e; }
+    .chat-item.active { background: #343541; color: #fff; }
+
+    #empty-sidebar {
+      font-size: 13px;
+      color: #6b7280;
+      padding: 8px 12px;
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    /* ── Main ── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    /* ── Message area ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 16px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .msg {
+      max-width: 680px;
+      width: 100%;
+      align-self: center;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .msg-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+    }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 15px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.user .msg-bubble {
+      background: #e9f0ff;
+      color: #1a1a1a;
+      align-self: flex-end;
+      max-width: 80%;
+    }
+    .msg.user { align-items: flex-end; }
+
+    .msg.assistant .msg-bubble {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      color: #1a1a1a;
+    }
+
+    /* Placeholder */
+    #placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #9ca3af;
+      text-align: center;
+      padding: 32px;
+    }
+    #placeholder svg { opacity: 0.4; }
+    #placeholder p { font-size: 16px; }
+    #placeholder small { font-size: 13px; }
+
+    /* ── Error / PII banners ── */
+    .banner {
+      font-size: 14px;
+      padding: 10px 16px;
+      text-align: center;
+      display: none;
+    }
+    .banner.visible { display: block; }
+
+    #error-banner {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    /* PII warning — shown inside input area */
+    #pii-warning {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #pii-warning.visible { display: flex; }
+
+    #pii-warning svg { flex-shrink: 0; margin-top: 2px; }
+
+    #pii-warning-body { flex: 1; }
+
+    #pii-warning-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #9a3412;
+      margin-bottom: 2px;
+    }
+
+    #pii-warning-detail {
+      font-size: 13px;
+      color: #c2410c;
+    }
+
+    #pii-warning-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #c2410c;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0 2px;
+      flex-shrink: 0;
+    }
+
+    /* ── Input area ── */
+    #input-area {
+      padding: 8px 16px 16px;
+      border-top: 1px solid #e5e7eb;
+      background: #f7f7f8;
+    }
+
+    #input-row {
+      display: flex;
+      gap: 8px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    #user-input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 15px;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      background: #fff;
+      max-height: 140px;
+      transition: border-color 0.15s;
+      line-height: 1.5;
+    }
+    #user-input:focus { border-color: #6366f1; }
+    #user-input.pii-blocked { border-color: #f97316; }
+
+    #send-btn {
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: none;
+      background: #6366f1;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      align-self: flex-end;
+    }
+    #send-btn:hover { background: #4f46e5; }
+    #send-btn:disabled { background: #c7d2fe; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside id="sidebar">
+  <h2>Chats</h2>
+  <button id="new-chat-btn" onclick="startNewChat()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    New Chat
+  </button>
+  <div id="chat-list"></div>
+  <div id="empty-sidebar">No chat history yet</div>
+</aside>
+
+<!-- ── Main panel ── -->
+<main id="main">
+  <div id="error-banner" class="banner">
+    Could not load this conversation. Please try another chat.
+  </div>
+
+  <div id="placeholder">
+    <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <p>Select a chat or start a new one</p>
+    <small>Your conversations will appear in the sidebar.</small>
+  </div>
+
+  <div id="messages" style="display:none;"></div>
+
+  <!-- Input -->
+  <div id="input-area">
+    <!-- PII warning banner -->
+    <div id="pii-warning">
+      <svg width="18" height="18" fill="none" stroke="#c2410c" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      <div id="pii-warning-body">
+        <div id="pii-warning-title">Sensitive information detected</div>
+        <div id="pii-warning-detail"></div>
+      </div>
+      <button id="pii-warning-close" onclick="dismissPiiWarning()" title="Dismiss">&times;</button>
+    </div>
+
+    <div id="input-row">
+      <textarea id="user-input" rows="1" placeholder="Type a message…"></textarea>
+      <button id="send-btn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ── Storage ────────────────────────────────────────────────────────────────
+  const STORAGE_KEY = 'chatapp_chats';
+  let chats = [];
+  let activeChatId = null;
+
+  function saveChats() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chats)); } catch {}
+  }
+
+  function loadChats() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) chats = JSON.parse(raw);
+    } catch { chats = []; }
+  }
+
+  // ── PII Guardrail (FR2) ────────────────────────────────────────────────────
+  // Each rule has a label shown to the user and a pattern to test against.
+  const PII_RULES = [
+    {
+      label: 'Password',
+      // Matches the word "password" followed (on the same line) by any non-whitespace value
+      pattern: /\bpassword\s*[=:is]+\s*\S+/i,
+    },
+    {
+      label: 'Credit Card Number',
+      // Matches 13–19 digit sequences, optionally separated by spaces or dashes
+      // (covers Visa 13/16, Mastercard 16, Amex 15, Discover 16, etc.)
+      pattern: /\b(?:\d[ -]?){13,18}\d\b/,
+    },
+    {
+      label: 'Social Security Number (SSN)',
+      // Matches ###-##-#### or ######### (9 consecutive digits)
+      pattern: /\b\d{3}[- ]?\d{2}[- ]?\d{4}\b/,
+    },
+  ];
+
+  /**
+   * Returns an array of matched PII rule labels, or an empty array if clean.
+   */
+  function detectPII(text) {
+    return PII_RULES.filter(rule => rule.pattern.test(text)).map(r => r.label);
+  }
+
+  function showPiiWarning(labels) {
+    const detail = document.getElementById('pii-warning-detail');
+    detail.textContent =
+      `Your message contains ${labels.join(', ')}. ` +
+      'Please remove sensitive information before sending.';
+    document.getElementById('pii-warning').classList.add('visible');
+    document.getElementById('user-input').classList.add('pii-blocked');
+  }
+
+  function dismissPiiWarning() {
+    document.getElementById('pii-warning').classList.remove('visible');
+    document.getElementById('user-input').classList.remove('pii-blocked');
+  }
+
+  // ── Title generation (FR1) ─────────────────────────────────────────────────
+  const TITLE_MAX = 40;
+
+  function generateTitle(firstMessage) {
+    const cleaned = firstMessage.trim().replace(/\s+/g, ' ');
+    if (cleaned.length <= TITLE_MAX) return cleaned;
+    const truncated = cleaned.slice(0, TITLE_MAX);
+    const lastSpace = truncated.lastIndexOf(' ');
+    return (lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated) + '…';
+  }
+
+  // ── Sidebar rendering ──────────────────────────────────────────────────────
+  function renderSidebar() {
+    const list = document.getElementById('chat-list');
+    const empty = document.getElementById('empty-sidebar');
+    list.innerHTML = '';
+
+    if (chats.length === 0) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+
+    [...chats].reverse().forEach(chat => {
+      const item = document.createElement('div');
+      item.className = 'chat-item' + (chat.id === activeChatId ? ' active' : '');
+      item.textContent = chat.title;
+      item.title = chat.title;
+      item.addEventListener('click', () => openChat(chat.id));
+      list.appendChild(item);
+    });
+  }
+
+  // ── Chat operations ────────────────────────────────────────────────────────
+  function startNewChat() {
+    const id = Date.now().toString();
+    chats.push({ id, title: 'New Chat', messages: [] });
+    saveChats();
+    openChat(id);
+  }
+
+  function openChat(id) {
+    hideError();
+    dismissPiiWarning();
+    const chat = chats.find(c => c.id === id);
+    if (!chat) { showError(); return; }
+
+    activeChatId = id;
+    renderSidebar();
+
+    document.getElementById('placeholder').style.display = 'none';
+    const messagesEl = document.getElementById('messages');
+    messagesEl.style.display = 'flex';
+    renderMessages(chat.messages);
+    document.getElementById('user-input').focus();
+  }
+
+  function renderMessages(messages) {
+    const el = document.getElementById('messages');
+    el.innerHTML = '';
+    messages.forEach(appendMessageElement);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function appendMessageElement({ role, text }) {
+    const el = document.getElementById('messages');
+    const wrapper = document.createElement('div');
+    wrapper.className = `msg ${role}`;
+
+    const label = document.createElement('div');
+    label.className = 'msg-label';
+    label.textContent = role === 'user' ? 'You' : 'Assistant';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = text;
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(bubble);
+    el.appendChild(wrapper);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // ── Send message ───────────────────────────────────────────────────────────
+  function sendMessage() {
+    const input = document.getElementById('user-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    hideError();
+
+    // FR2 — PII guardrail: block before anything else
+    const piiFound = detectPII(text);
+    if (piiFound.length > 0) {
+      showPiiWarning(piiFound);
+      return; // message is NOT sent
+    }
+
+    dismissPiiWarning();
+
+    if (!activeChatId) startNewChat();
+
+    const chat = chats.find(c => c.id === activeChatId);
+    if (!chat) { showError(); return; }
+
+    input.value = '';
+    autoResizeTextarea(input);
+
+    // Set title from first user message
+    if (chat.messages.length === 0) {
+      chat.title = generateTitle(text);
+    }
+
+    const userMsg = { role: 'user', text };
+    chat.messages.push(userMsg);
+    appendMessageElement(userMsg);
+    saveChats();
+    renderSidebar();
+
+    simulateReply(chat);
+  }
+
+  function simulateReply(chat) {
+    const btn = document.getElementById('send-btn');
+    btn.disabled = true;
+
+    setTimeout(() => {
+      const reply = {
+        role: 'assistant',
+        text: 'This is a placeholder response. Connect this to your backend or AI API to generate real replies.',
+      };
+      chat.messages.push(reply);
+      appendMessageElement(reply);
+      saveChats();
+      btn.disabled = false;
+      document.getElementById('user-input').focus();
+    }, 600);
+  }
+
+  // ── Error handling ─────────────────────────────────────────────────────────
+  function showError() { document.getElementById('error-banner').classList.add('visible'); }
+  function hideError() { document.getElementById('error-banner').classList.remove('visible'); }
+
+  // ── UX helpers ─────────────────────────────────────────────────────────────
+  function autoResizeTextarea(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  document.getElementById('user-input').addEventListener('input', function () {
+    autoResizeTextarea(this);
+    // Dismiss stale PII warning as user edits the message
+    if (document.getElementById('pii-warning').classList.contains('visible')) {
+      dismissPiiWarning();
+    }
+  });
+
+  document.getElementById('user-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  loadChats();
+  renderSidebar();
+</script>
+</body>
+</html>
